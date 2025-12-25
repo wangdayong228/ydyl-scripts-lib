@@ -107,10 +107,10 @@ assert_eq "3" "$LAST_DONE_STEP" "run_step 后 LAST_DONE_STEP 应为最后执行�
 pass "测试 3 通过"
 
 ########################################
-# 测试 4: check_input_env_compat 一致与不一致
+# 测试 4: check_input_env_consistency 一致与不一致
 ########################################
 
-echo "== 测试 4: check_input_env_compat 一致与不一致 =="
+echo "== 测试 4: check_input_env_consistency 一致与不一致 =="
 
 STATE_FILE="$TEST_TMP_DIR/state.env_compat"
 PERSIST_VARS=( L1_CHAIN_ID )
@@ -118,14 +118,14 @@ L1_CHAIN_ID="10086"
 save_state 1
 
 # 一致情况：不应报错
-ORIG_L1_CHAIN_ID="10086"
-check_input_env_compat L1_CHAIN_ID
-pass "check_input_env_compat 一致情况通过"
+INPUT_L1_CHAIN_ID="10086"
+check_input_env_consistency L1_CHAIN_ID
+pass "check_input_env_consistency 一致情况通过"
 
 # 不一致情况：在子进程中调用，预期非 0 退出
-ORIG_L1_CHAIN_ID="99999"
-if ( check_input_env_compat L1_CHAIN_ID ); then
-  fail "check_input_env_compat 不一致情况测试失败（未检测到错误）"
+INPUT_L1_CHAIN_ID="99999"
+if ( check_input_env_consistency L1_CHAIN_ID ); then
+  fail "check_input_env_consistency 不一致情况测试失败（未检测到错误）"
 fi
 
 pass "测试 4 通过（包含不一致情况）"

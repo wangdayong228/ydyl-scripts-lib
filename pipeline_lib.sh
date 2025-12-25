@@ -30,23 +30,23 @@ save_state() {
 }
 
 # 检查关键输入环境变量是否与历史状态一致
-check_input_env_compat() {
+check_input_env_consistency() {
   local name="$1"
-  local orig_name="ORIG_${name}"
-  local orig_val="${!orig_name-}"
+  local input_name="INPUT_${name}"
+  local input_val="${!input_name-}"
   local persisted_val="${!name-}"
 
   # 如果本次有显式传入，且状态文件中也有对应值但不同，则报错
-  if [ -n "$orig_val" ] && [ -n "$persisted_val" ] && [ "$orig_val" != "$persisted_val" ]; then
-    echo "错误: 当前环境变量 $name=$orig_val 与状态文件中保存的值 $name=$persisted_val 不一致。"
+  if [ -n "$input_val" ] && [ -n "$persisted_val" ] && [ "$input_val" != "$persisted_val" ]; then
+    echo "错误: 当前环境变量 $name=$input_val 与状态文件中保存的值 $name=$persisted_val 不一致。"
     echo "为避免混用不同配置，请先删除状态文件后再重新执行："
     echo "  rm \"$STATE_FILE\" && ./cdk_pipe.sh"
     exit 1
   fi
 
   # 如果状态文件中没有该变量，但本次有传入，则以后以本次传入为准
-  if [ -n "$orig_val" ] && [ -z "$persisted_val" ]; then
-    printf -v "$name" '%s' "$orig_val"
+  if [ -n "$input_val" ] && [ -z "$persisted_val" ]; then
+    printf -v "$name" '%s' "$input_val"
     # export 动态变量名（如 L1_CHAIN_ID）；使用 ${name?} 明确告诉 shellcheck 这是变量名而非字面量 "name"
     export "${name?}"
   fi
