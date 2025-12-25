@@ -29,6 +29,55 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/utils.sh"
 
+ydyl_parse_enclave_and_network() {
+  local expected_prefix="$1" # cdk/op（不带 '-'）
+  local enclave_name="$2"
+  local prefix="${expected_prefix}-"
+
+  if [ -z "$expected_prefix" ] || [ -z "$enclave_name" ]; then
+    echo "ydyl_parse_enclave_and_network: 参数不足" >&2
+    return 1
+  fi
+
+  if [[ "$enclave_name" != "$prefix"* ]]; then
+    echo "错误: enclave 名称必须以 ${prefix} 开头，例如 ${prefix}eth / ${prefix}cfx-dev / ${prefix}gen" >&2
+    return 1
+  fi
+
+  # 通过 source 方式使用时，直接写入调用方变量
+  # shellcheck disable=SC2034  # ENCLAVE_NAME/NETWORK 由调用方脚本使用
+  printf -v ENCLAVE_NAME '%s' "$enclave_name"
+  # shellcheck disable=SC2034  # ENCLAVE_NAME/NETWORK 由调用方脚本使用
+  printf -v NETWORK '%s' "${enclave_name#${prefix}}"
+}
+
+ydyl_prepare_deploy_paths() {
+  local script_dir="$1"
+  local network="$2"
+  local output_dir="$3"
+  local update_nginx_script="$4"
+
+  if [ -z "$script_dir" ] || [ -z "$network" ] || [ -z "$output_dir" ] || [ -z "$update_nginx_script" ]; then
+    echo "ydyl_prepare_deploy_paths: 参数不足" >&2
+    return 1
+  fi
+
+  mkdir -p "$output_dir" || return 1
+
+  TEMPLATE_FILE="$script_dir/params.template.yml"
+  # shellcheck disable=SC2034  # TEMPLATE_FILE/TEMP_CONFIG/LOG_FILE/UPDATE_NGINX_SCRIPT/DEPLOY_RESULT_FILE 由调用方脚本使用
+  TEMP_CONFIG="$script_dir/params-${network}.yml"
+  # shellcheck disable=SC2034  # TEMPLATE_FILE/TEMP_CONFIG/LOG_FILE/UPDATE_NGINX_SCRIPT/DEPLOY_RESULT_FILE 由调用方脚本使用
+  LOG_FILE="$script_dir/deploy-${network}.log"
+  # shellcheck disable=SC2034  # TEMPLATE_FILE/TEMP_CONFIG/LOG_FILE/UPDATE_NGINX_SCRIPT/DEPLOY_RESULT_FILE 由调用方脚本使用
+  UPDATE_NGINX_SCRIPT="$update_nginx_script"
+  # shellcheck disable=SC2034  # TEMPLATE_FILE/TEMP_CONFIG/LOG_FILE/UPDATE_NGINX_SCRIPT/DEPLOY_RESULT_FILE 由调用方脚本使用
+  DEPLOY_RESULT_FILE="$output_dir/deploy-result-${network}.json"
+
+  require_file "$TEMPLATE_FILE" || return 1
+  require_file "$UPDATE_NGINX_SCRIPT" || return 1
+}
+
 ydyl_kurtosis_deploy() {
   if [ -z "${DEPLOY_L2_TYPE:-}" ]; then echo "缺少 DEPLOY_L2_TYPE" >&2; return 1; fi
   if [ -z "${DEPLOY_NETWORK:-}" ]; then echo "缺少 DEPLOY_NETWORK" >&2; return 1; fi

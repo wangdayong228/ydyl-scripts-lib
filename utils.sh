@@ -5,6 +5,21 @@ require_command() {
   command -v "$cmd" >/dev/null 2>&1 || { echo "未找到 $cmd" >&2; return 1; }
 }
 
+require_commands() {
+  local cmd
+  for cmd in "$@"; do
+    require_command "$cmd" || return 1
+  done
+}
+
+require_file() {
+  local f="$1"
+  if [ ! -f "$f" ]; then
+    echo "文件不存在: $f" >&2
+    return 1
+  fi
+}
+
 run_with_retry() {
   local max_retries="$1"
   local delay_seconds="$2"
@@ -42,6 +57,53 @@ check_template_substitution() {
     echo "文件 $file 中仍存在未替换的模板变量，视为错误: $file" >&2
     return 1
   fi
+}
+
+########################################
+# PM2 工具：检查所有进程是否 online
+########################################
+
+# 内部实现函数：不控制 xtrace，只负责逻辑
+_pm2_check_all_online_impl() {
+  local namespace="${1:-}"
+  local jq_filter='.[]'
+
+  if [ -n "$namespace" ]; then
+    jq_filter='.[] | select(.pm2_env.namespace=="'"$namespace"'")'
+  fi
+
+  # 把 pm2 的 stderr 丢掉，避免非 JSON 干扰 jq
+  local jlist
+  if ! jlist=$(pm2 jlist --silent 2>/dev/null); then
+    echo "🔴 pm2 jlist 执行失败，可能 pm2 本身有问题" >&2
+    return 1
+  fi
+
+  local bad
+  if ! bad=$(printf '%s\n' "$jlist" \
+    | jq -r "$jq_filter | select(.pm2_env.status != \"online\") | \"\(.name) [ns=\(.pm2_env.namespace // \"-\")] status=\(.pm2_env.status)\""
+  ); then
+    echo "🔴 解析 pm2 jlist 输出失败（jq 报错），请单独运行 'pm2 jlist' 查看原始输出" >&2
+    return 1
+  fi
+
+  if [ -n "$bad" ]; then
+    echo "🔴 以下 PM2 进程状态非 online：" >&2
+    echo "$bad" >&2
+    echo "请用 'pm2 logs <name>' 查看具体错误日志。" >&2
+    return 1
+  fi
+
+  if [ -n "$namespace" ]; then
+    echo "🟢 namespace=$namespace 下的 PM2 进程全部 online"
+  else
+    echo "🟢 所有 PM2 进程全部 online"
+  fi
+}
+
+# 对外暴露的检查函数：在子 shell 中关闭 xtrace，避免打印中间变量
+pm2_check_all_online() {
+  ( set +x; _pm2_check_all_online_impl "$@" )
 }
 
 
