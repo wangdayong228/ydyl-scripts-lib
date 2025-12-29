@@ -82,7 +82,7 @@ step5_fund_l2_accounts() {
 step7_deploy_counter_and_register_bridge() {
   cd "$DIR"/zk-claim-service || return 1
   yarn
-  npx hardhat compile
+  PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000000 npx hardhat compile
 
   if [[ -z "${COUNTER_BRIDGE_REGISTER_RESULT_FILE:-}" ]]; then
     COUNTER_BRIDGE_REGISTER_RESULT_FILE="$DIR"/output/counter-bridge-register-result-"$NETWORK".json
