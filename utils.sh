@@ -114,7 +114,7 @@ pm2_check_all_online() {
 # Bash-only error & stack trace module
 
 # 防止重复 source
-[[ -n "${__YDYL_ERROR_LOADED:-}" ]] && return 0
+if [[ -n "${__YDYL_ERROR_LOADED:-}" ]]; then return 0; fi
 __YDYL_ERROR_LOADED=1
 
 # 内部状态：是否已处理过错误
@@ -130,7 +130,7 @@ ydyl_print_stack() {
 
   {
     echo "❌ 退出码=$code"
-    [[ -n $cmd ]] && echo "  命令=$cmd"
+    if [[ -n $cmd ]]; then echo "  命令=$cmd"; fi
 
     local i=1
     local depth=${#FUNCNAME[@]}
@@ -179,7 +179,7 @@ ydyl_trap_exit() {
   local cmd="$BASH_COMMAND"
 
   # ERR 已处理过，直接返回
-  (( __YDYL_ERR_HANDLED )) && return 0
+  if (( __YDYL_ERR_HANDLED )); then return 0; fi
 
   # 正常退出不打印
   # [[ $code -eq 0 ]] && return 0
