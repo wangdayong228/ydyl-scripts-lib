@@ -182,7 +182,7 @@ ydyl_trap_exit() {
   if (( __YDYL_ERR_HANDLED )); then return 0; fi
 
   # 正常退出不打印
-  # [[ $code -eq 0 ]] && return 0
+  [[ $code -eq 0 ]] && return 0
 
   __YDYL_ERR_HANDLED=1
   ydyl_print_stack "$code" "$cmd"
