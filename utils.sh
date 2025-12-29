@@ -110,37 +110,94 @@ pm2_check_all_online() {
 ########################################
 # 错误堆栈打印、trap 捕获等基础功能实现。
 ########################################
+# ydyl_error.sh
+# Bash-only error & stack trace module
 
-# NOTE: 子 shell 报错时，堆栈输出不准确，所以不要使用圆括号包裹子 shell 命令
+# 防止重复 source
+[[ -n "${__YDYL_ERROR_LOADED:-}" ]] && return 0
+__YDYL_ERROR_LOADED=1
+
+# 内部状态：是否已处理过错误
+__YDYL_ERR_HANDLED=0
+
+########################################
+# 打印调用栈（纯输出，无控制流）
+########################################
 ydyl_print_stack() {
   local code=${1:-0}
-  local cmd="${BASH_COMMAND-}"
-  echo "❌ 退出码=$code, 命令='$cmd'" >&2
+  # 优先使用传入的命令，如果没有则回退到当前 BASH_COMMAND
+  local cmd="${2:-${BASH_COMMAND-}}"
 
-  # 打印调用栈（从当前函数的上一级开始）
-  local i=2
-  while [[ $i -lt ${#FUNCNAME[@]} ]]; do
-    local src="${BASH_SOURCE[$i]-}"
-    local lineno="${BASH_LINENO[$((i-1))]-}"
-    local fn="${FUNCNAME[$i]-}"
-    echo "  at ${src}:${lineno} ${fn}()" >&2
-    ((i++))
-  done
+  {
+    echo "❌ 退出码=$code"
+    [[ -n $cmd ]] && echo "  命令=$cmd"
+
+    local i=1
+    local depth=${#FUNCNAME[@]}
+
+    while (( i < depth )); do
+      local fn="${FUNCNAME[$i]}"
+      # 跳过内部框架函数
+      if [[ $fn == ydyl_* ]]; then
+        ((i++))
+        continue
+      fi
+
+      local src="${BASH_SOURCE[$i]-unknown}"
+      local lineno="${BASH_LINENO[$((i-1))]-unknown}"
+
+      echo "  at ${src}:${lineno} ${fn}()"
+      ((i++))
+    done
+  } >&2
 }
 
+########################################
+# ERR trap：真正的错误入口
+########################################
 ydyl_trap_err() {
   local code=$?
-  ydyl_print_stack "$code"
+  # 关键：在 trap 入口立刻捕获原始命令
+  local cmd="$BASH_COMMAND"
+
+  # 防止 ERR → exit → EXIT → 重复打印
+  if (( __YDYL_ERR_HANDLED )); then
+    exit "$code"
+  fi
+
+  __YDYL_ERR_HANDLED=1
+  ydyl_print_stack "$code" "$cmd"
   exit "$code"
 }
 
+########################################
+# EXIT trap：兜底（非 ERR 触发）
+########################################
 ydyl_trap_exit() {
   local code=$?
-  [[ "$code" -eq 0 ]] && return 0
-  ydyl_print_stack "$code"
+  # 关键：在 trap 入口立刻捕获原始命令
+  local cmd="$BASH_COMMAND"
+
+  # ERR 已处理过，直接返回
+  (( __YDYL_ERR_HANDLED )) && return 0
+
+  # 正常退出不打印
+  # [[ $code -eq 0 ]] && return 0
+
+  __YDYL_ERR_HANDLED=1
+  ydyl_print_stack "$code" "$cmd"
 }
 
+########################################
+# 对外 API：启用错误处理
+########################################
 ydyl_enable_traps() {
-  trap 'ydyl_trap_err' ERR
-  trap 'ydyl_trap_exit' EXIT
+  # Bash-only 保护
+  if [[ -z ${BASH_VERSION:-} ]]; then
+    echo "ydyl_error: requires bash" >&2
+    exit 2
+  fi
+
+  trap ydyl_trap_err ERR
+  trap ydyl_trap_exit EXIT
 }
