@@ -4,7 +4,7 @@ set -euo pipefail
 # 引入 utils.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UTILS_PATH="$SCRIPT_DIR/utils.sh"
-if [ ! -f "$UTILS_PATH" ]; then
+if [[ ! -f "$UTILS_PATH" ]]; then
   echo "找不到 utils.sh 文件"
   exit 1
 fi
@@ -15,7 +15,7 @@ fail_count=0
 max_fail=2
 
 fake_cmd() {
-  if [ $fail_count -lt $max_fail ]; then
+  if [[ $fail_count -lt $max_fail ]]; then
     ((fail_count++))
     echo "模拟失败 ($fail_count/$max_fail)"
     return 1

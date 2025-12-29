@@ -14,11 +14,12 @@ require_commands() {
 
 require_file() {
   local f="$1"
-  if [ ! -f "$f" ]; then
+  if [[ ! -f "$f" ]]; then
     echo "文件不存在: $f" >&2
     return 1
   fi
 }
+
 
 run_with_retry() {
   local max_retries="$1"
@@ -68,7 +69,7 @@ _pm2_check_all_online_impl() {
   local namespace="${1:-}"
   local jq_filter='.[]'
 
-  if [ -n "$namespace" ]; then
+  if [[ -n "$namespace" ]]; then
     jq_filter='.[] | select(.pm2_env.namespace=="'"$namespace"'")'
   fi
 
@@ -87,14 +88,14 @@ _pm2_check_all_online_impl() {
     return 1
   fi
 
-  if [ -n "$bad" ]; then
+  if [[ -n "$bad" ]]; then
     echo "🔴 以下 PM2 进程状态非 online：" >&2
     echo "$bad" >&2
     echo "请用 'pm2 logs <name>' 查看具体错误日志。" >&2
     return 1
   fi
 
-  if [ -n "$namespace" ]; then
+  if [[ -n "$namespace" ]]; then
     echo "🟢 namespace=$namespace 下的 PM2 进程全部 online"
   else
     echo "🟢 所有 PM2 进程全部 online"
@@ -106,4 +107,40 @@ pm2_check_all_online() {
   ( set +x; _pm2_check_all_online_impl "$@" )
 }
 
+########################################
+# 错误堆栈打印、trap 捕获等基础功能实现。
+########################################
 
+# NOTE: 子 shell 报错时，堆栈输出不准确，所以不要使用圆括号包裹子 shell 命令
+ydyl_print_stack() {
+  local code=${1:-0}
+  local cmd="${BASH_COMMAND-}"
+  echo "❌ 退出码=$code, 命令='$cmd'" >&2
+
+  # 打印调用栈（从当前函数的上一级开始）
+  local i=2
+  while [[ $i -lt ${#FUNCNAME[@]} ]]; do
+    local src="${BASH_SOURCE[$i]-}"
+    local lineno="${BASH_LINENO[$((i-1))]-}"
+    local fn="${FUNCNAME[$i]-}"
+    echo "  at ${src}:${lineno} ${fn}()" >&2
+    ((i++))
+  done
+}
+
+ydyl_trap_err() {
+  local code=$?
+  ydyl_print_stack "$code"
+  exit "$code"
+}
+
+ydyl_trap_exit() {
+  local code=$?
+  [[ "$code" -eq 0 ]] && return 0
+  ydyl_print_stack "$code"
+}
+
+ydyl_enable_traps() {
+  trap 'ydyl_trap_err' ERR
+  trap 'ydyl_trap_exit' EXIT
+}

@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# 简单测试脚本，用于验证 pipeline_lib.sh 的核心行为
+# 简单测试脚本，用于验证 pipeline_utils.sh 的核心行为
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "$DIR/pipeline_lib.sh"
+. "$DIR/pipeline_utils.sh"
 
 TEST_TMP_DIR="$DIR/output/pipeline_lib_test"
 mkdir -p "$TEST_TMP_DIR"
@@ -17,7 +17,7 @@ assert_eq() {
   local expected="$1"
   local actual="$2"
   local msg="${3:-}"
-  if [ "$expected" != "$actual" ]; then
+  if [[ "$expected" != "$actual" ]]; then
     fail "断言失败: $msg 期望='$expected', 实际='$actual'"
   fi
 }
@@ -43,7 +43,7 @@ pipeline_load_state
 assert_eq "0" "$LAST_DONE_STEP" "初始 LAST_DONE_STEP 应为 0"
 
 save_state 3
-[ -f "$STATE_FILE" ] || fail "状态文件未生成: $STATE_FILE"
+[[ -f "$STATE_FILE" ]] || fail "状态文件未生成: $STATE_FILE"
 
 # 模拟新进程加载状态
 unset FOO BAR LAST_DONE_STEP
@@ -130,6 +130,6 @@ fi
 
 pass "测试 4 通过（包含不一致情况）"
 
-echo "🎉 所有 pipeline_lib.sh 测试通过"
+echo "🎉 所有 pipeline_utils.sh 测试通过"
 
 
