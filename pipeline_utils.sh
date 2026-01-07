@@ -13,6 +13,8 @@ pipeline_load_state() {
 # 保存当前步骤及持久化变量到状态文件
 save_state() {
   local step="$1"
+  # 同步内存中的 LAST_DONE_STEP，避免后续逻辑（如 step 开始时落盘 running）回写旧值
+  LAST_DONE_STEP="$step"
   # DRYRUN=false（或未显式设为 true）时，不进行状态持久化
   if [[ "${DRYRUN:-false}" = "true" ]]; then
     echo "ℹ️ DRYRUN=true，跳过状态持久化（环境变量与步骤进度不会保存）"
@@ -77,10 +79,28 @@ run_step() {
     return 0
   fi
 
+  # 进入 step 即落盘 running（不推进 LAST_DONE_STEP，只更新状态）
+  # 注意：PIPELINE_STATUS 需由上层 pipe 脚本加入 PERSIST_VARS 才会写入 state 文件
+  local last_done="${LAST_DONE_STEP:-0}"
+  # shellcheck disable=SC2034  # 该变量通过 PERSIST_VARS 间接写入 state 文件
+  PIPELINE_STATUS="running"
+  save_state "$last_done"
+
   echo "🔹 开始 STEP$step: $name"
-  "$@"
-  save_state "$step"
-  echo "✅ 完成 STEP$step: $name"
+  # 注意：在 set -e 场景下，不能直接执行 "$@"，否则失败会直接退出，无法落盘 failed 状态；
+  # 需要用 if 包裹以便我们捕获退出码并持久化状态
+  if "$@"; then
+    save_state "$step"
+    echo "✅ 完成 STEP$step: $name"
+    return 0
+  fi
+
+  local code=$?
+  # shellcheck disable=SC2034  # 该变量通过 PERSIST_VARS 间接写入 state 文件
+  PIPELINE_STATUS="failed"
+  save_state "$last_done"
+  echo "❌ 失败 STEP$step: $name (退出码=$code)" >&2
+  return "$code"
 }
 
 
