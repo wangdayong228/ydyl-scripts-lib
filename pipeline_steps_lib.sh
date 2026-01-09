@@ -147,3 +147,6 @@ step12_check_pm2_online() {
 }
 
 
+skip_step(){
+  return 0
+}
