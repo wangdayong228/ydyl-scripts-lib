@@ -17,10 +17,15 @@ step1_init_identities() {
 		CLAIM_SERVICE_PRIVATE_KEY="0x$(openssl rand -hex 32)"
 	fi
 
+	# L2_PRIVATE_KEY 用途说明：
+	# - L2 上部署 Counter 合约（bridge 注册流程依赖）
+	# - ydyl-gen-accounts 的付款/部署账户（写入 ydyl-gen-accounts/.env 的 PRIVATE_KEY）
 	if [[ -z "${L2_PRIVATE_KEY:-}" ]]; then
 		L2_PRIVATE_KEY="0x$(openssl rand -hex 32)"
 	fi
 
+	# L2_ADDRESS 为 L2_PRIVATE_KEY 对应地址，用于后续在 STEP5 充值 L2 ETH，
+	# 以支撑 Counter 部署与 ydyl-gen-accounts 批量交易等操作。
 	if [[ -z "${L2_ADDRESS:-}" ]]; then
 		L2_ADDRESS=$(cast wallet address --private-key "$L2_PRIVATE_KEY")
 	fi
@@ -32,7 +37,8 @@ step1_init_identities() {
 	echo "CLAIM_SERVICE_PRIVATE_KEY: $CLAIM_SERVICE_PRIVATE_KEY"
 	echo "L2_PRIVATE_KEY: $L2_PRIVATE_KEY"
 	echo "L2_ADDRESS: $L2_ADDRESS"
-	echo "L2_ADDRESS 用于给 CLAIM_SERVICE_PRIVATE_KEY 部署 counter 合约 和 ydyl-gen-accounts 服务创建账户"
+	echo "L2_PRIVATE_KEY 用于：部署 L2 Counter 合约（bridge 注册流程）、以及 ydyl-gen-accounts 的付款/部署账户"
+	echo "L2_ADDRESS 用于：接收 STEP5 的 L2 充值（为上述操作提供余额）"
 }
 
 ########################################
@@ -69,6 +75,7 @@ step5_fund_l2_accounts() {
 		echo "🔹 DRYRUN 模式: 转账 L2 ETH 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY (DRYRUN 模式下不执行实际转账)"
 	else
 		echo "🔹 实际转账 L2 ETH 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY"
+		# 说明：这里给 L2_ADDRESS（由 L2_PRIVATE_KEY 推导）充值，主要用于后续 Counter 部署与 ydyl-gen-accounts 交易等。
 		cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 100ether "$L2_ADDRESS" --rpc-timeout 60
 		cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 100ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60
 	fi
@@ -99,6 +106,7 @@ step9_gen_accounts() {
 	npm run clean
 
 	echo "🔹 STEP9.2: 创建 .env 文件"
+	# 说明：把 L2_PRIVATE_KEY 写入 ydyl-gen-accounts 的 PRIVATE_KEY，作为其付款/部署账户。
 	cat >.env <<EOF
 PRIVATE_KEY=$L2_PRIVATE_KEY
 RPC=$L2_RPC_URL
@@ -121,6 +129,9 @@ step10_collect_metadata() {
 
 	METADATA_FILE=$DIR/output/$ENCLAVE_NAME-meta.json
 	export L2_RPC_URL L2_VAULT_PRIVATE_KEY L2_COUNTER_CONTRACT L2_TYPE
+	# 说明：metadata 中的 L2_PRIVATE_KEY 对应本次部署所用的 L2 账户私钥：
+	# - 用于部署 L2 Counter 合约（bridge 注册流程）
+	# - 用于 ydyl-gen-accounts 的付款/部署账户
 	jq -n 'env | { L2_TYPE, L1_VAULT_PRIVATE_KEY, L2_RPC_URL, L2_VAULT_PRIVATE_KEY, KURTOSIS_L1_PREALLOCATED_MNEMONIC, CLAIM_SERVICE_PRIVATE_KEY, L2_PRIVATE_KEY, L1_CHAIN_ID, L2_CHAIN_ID, L1_RPC_URL, L2_COUNTER_CONTRACT}' >"$METADATA_FILE"
 	echo "文件已保存到 $METADATA_FILE"
 }
