@@ -12,22 +12,20 @@ step1_init_identities() {
   if [[ -z "${KURTOSIS_L1_PREALLOCATED_MNEMONIC:-}" ]]; then
     KURTOSIS_L1_PREALLOCATED_MNEMONIC=$(cast wallet new-mnemonic --json | jq -r '.mnemonic')
   fi
-  export KURTOSIS_L1_PREALLOCATED_MNEMONIC
 
   if [[ -z "${CLAIM_SERVICE_PRIVATE_KEY:-}" ]]; then
     CLAIM_SERVICE_PRIVATE_KEY="0x$(openssl rand -hex 32)"
   fi
-  export CLAIM_SERVICE_PRIVATE_KEY
 
   if [[ -z "${L2_PRIVATE_KEY:-}" ]]; then
     L2_PRIVATE_KEY="0x$(openssl rand -hex 32)"
   fi
-  export L2_PRIVATE_KEY
 
   if [[ -z "${L2_ADDRESS:-}" ]]; then
     L2_ADDRESS=$(cast wallet address --private-key "$L2_PRIVATE_KEY")
   fi
-  export L2_ADDRESS
+
+  export KURTOSIS_L1_PREALLOCATED_MNEMONIC CLAIM_SERVICE_PRIVATE_KEY L2_PRIVATE_KEY L2_ADDRESS
 
   echo "生成/加载身份："
   echo "KURTOSIS_L1_PREALLOCATED_MNEMONIC: $KURTOSIS_L1_PREALLOCATED_MNEMONIC"
@@ -122,8 +120,7 @@ step10_collect_metadata() {
   L2_COUNTER_CONTRACT=$(jq -r '.counter' "$COUNTER_BRIDGE_REGISTER_RESULT_FILE")
 
   METADATA_FILE=$DIR/output/$ENCLAVE_NAME-meta.json
-  export L2_RPC_URL L2_VAULT_PRIVATE_KEY L2_COUNTER_CONTRACT
-  export L2_TYPE
+  export L2_RPC_URL L2_VAULT_PRIVATE_KEY L2_COUNTER_CONTRACT L2_TYPE
   jq -n 'env | { L2_TYPE, L1_VAULT_PRIVATE_KEY, L2_RPC_URL, L2_VAULT_PRIVATE_KEY, KURTOSIS_L1_PREALLOCATED_MNEMONIC, CLAIM_SERVICE_PRIVATE_KEY, L2_PRIVATE_KEY, L1_CHAIN_ID, L2_CHAIN_ID, L1_RPC_URL, L2_COUNTER_CONTRACT}' >"$METADATA_FILE"
   echo "文件已保存到 $METADATA_FILE"
 }
