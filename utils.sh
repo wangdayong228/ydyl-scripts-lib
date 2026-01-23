@@ -20,6 +20,14 @@ require_file() {
   fi
 }
 
+require_var() {
+    local var_name="$1"
+    local var_value="${!var_name}"
+    if [[ -z "${var_value:-}" ]]; then
+        echo "错误: $var_name 为空或未设置" >&2
+        return 1
+    fi
+}
 
 run_with_retry() {
   local max_retries="$1"
