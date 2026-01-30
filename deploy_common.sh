@@ -137,8 +137,16 @@ ydyl_kurtosis_deploy() {
     check_template_substitution "$DEPLOY_RENDERED_ARGS_FILE" || return 1
     echo "generated args file: $DEPLOY_RENDERED_ARGS_FILE"
 
+    _kurtosis_rm_then_run() {
+      kurtosis enclave rm -f "${enclave_name}" || true
+      kurtosis run --cli-log-level debug -v EXECUTABLE \
+        --enclave "${enclave_name}" \
+        --args-file "$DEPLOY_RENDERED_ARGS_FILE" \
+        "$DEPLOY_PACKAGE_LOCATOR" >"$DEPLOY_LOG_FILE" 2>&1
+    }
+
     echo "running kurtosis run with retry 10 times, 5 seconds interval"
-    run_with_retry 10 5 kurtosis run --cli-log-level debug -v EXECUTABLE --enclave "${enclave_name}" --args-file "$DEPLOY_RENDERED_ARGS_FILE" "$DEPLOY_PACKAGE_LOCATOR" >"$DEPLOY_LOG_FILE" 2>&1 || return 1
+    run_with_retry 10 5 _kurtosis_rm_then_run || return 1
     echo "kurtosis run with retry completed"
 
     export YDYL_DEPLOY_STATUS="ran"

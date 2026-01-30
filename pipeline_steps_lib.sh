@@ -57,13 +57,13 @@ step2_fund_l1_accounts() {
 	fi
 
 	if [[ "${DRYRUN:-}" = "true" ]]; then
-		echo "🔹 DRYRUN 模式: 转账 L1 ETH 给 KURTOSIS_L1_PREALLOCATED_MNEMONIC 和 CLAIM_SERVICE_PRIVATE_KEY (DRYRUN 模式下不执行实际转账)"
+		echo "🔹 DRYRUN 模式: 转账 L1 ETH 给 KURTOSIS_L1_FUND_VAULT_ADDRESS ${KURTOSIS_L1_FUND_VAULT_ADDRESS}、CLAIM_SERVICE_PRIVATE_KEY ${CLAIM_SERVICE_ADDRESS} 和 L1_REGISTER_BRIDGE_ADDRESS ${L1_REGISTER_BRIDGE_ADDRESS} (DRYRUN 模式下不执行实际转账)"
 	else
-		echo "🔹 实际转账 L1 ETH 给 KURTOSIS_L1_PREALLOCATED_MNEMONIC 和 CLAIM_SERVICE_PRIVATE_KEY"
+		echo "🔹 实际转账 L1 ETH 给 KURTOSIS_L1_FUND_VAULT_ADDRESS ${KURTOSIS_L1_FUND_VAULT_ADDRESS} 、CLAIM_SERVICE_PRIVATE_KEY ${CLAIM_SERVICE_ADDRESS} 和 L1_REGISTER_BRIDGE_ADDRESS ${L1_REGISTER_BRIDGE_ADDRESS}"
 		# shellcheck disable=SC2153 # 相关变量由调用方（如 cdk_pipe.sh）负责初始化与校验
-		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 100ether "$KURTOSIS_L1_FUND_VAULT_ADDRESS" --rpc-timeout 60
+		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 200ether "$KURTOSIS_L1_FUND_VAULT_ADDRESS" --rpc-timeout 60
 		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 100ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60
-		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 10ether "$L1_REGISTER_BRIDGE_ADDRESS" --rpc-timeout 60
+		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 100ether "$L1_REGISTER_BRIDGE_ADDRESS" --rpc-timeout 60
 	fi
 }
 
