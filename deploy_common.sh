@@ -153,11 +153,15 @@ ydyl_kurtosis_deploy() {
 			echo "删除旧的 enclave ${enclave_name}"
 		fi
 
-		envsubst <"$DEPLOY_TEMPLATE_FILE" >"$DEPLOY_RENDERED_ARGS_FILE" || return 1
-		check_template_substitution "$DEPLOY_RENDERED_ARGS_FILE" || return 1
-		echo "generated args file: $DEPLOY_RENDERED_ARGS_FILE"
-
 		_kurtosis_rm_then_run() {
+			# TODO: 为了防止重新部署 cdk 时合约冲突，需要修改 salt，后续考虑优化这个 hack 逻辑
+			DEPLOY_PARAMETERS_SALT=0x$(openssl rand -hex 32)
+			export DEPLOY_PARAMETERS_SALT
+
+			envsubst <"$DEPLOY_TEMPLATE_FILE" >"$DEPLOY_RENDERED_ARGS_FILE" || return 1
+			check_template_substitution "$DEPLOY_RENDERED_ARGS_FILE" || return 1
+			echo "generated args file: $DEPLOY_RENDERED_ARGS_FILE"
+
 			kurtosis enclave rm -f "${enclave_name}" || true
 			kurtosis run --cli-log-level debug -v EXECUTABLE \
 				--enclave "${enclave_name}" \
