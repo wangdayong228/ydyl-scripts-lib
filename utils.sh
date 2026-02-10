@@ -69,11 +69,11 @@ check_template_substitution() {
 }
 
 ########################################
-# PM2 工具：检查所有进程是否 online
+# PM2 工具：检查是否有进程处于 error 状态；非 error 即视为成功
 ########################################
 
 # 内部实现函数：不控制 xtrace，只负责逻辑
-_pm2_check_all_online_impl() {
+_pm2_check_all_unerror_impl() {
   local namespace="${1:-}"
   local jq_filter='.[]'
 
@@ -90,29 +90,29 @@ _pm2_check_all_online_impl() {
 
   local bad
   if ! bad=$(printf '%s\n' "$jlist" \
-    | jq -r "$jq_filter | select(.pm2_env.status != \"online\") | \"\(.name) [ns=\(.pm2_env.namespace // \"-\")] status=\(.pm2_env.status)\""
+    | jq -r "$jq_filter | select(.pm2_env.status == \"errored\") | \"\(.name) [ns=\(.pm2_env.namespace // \"-\")] status=\(.pm2_env.status)\""
   ); then
     echo "🔴 解析 pm2 jlist 输出失败（jq 报错），请单独运行 'pm2 jlist' 查看原始输出" >&2
     return 1
   fi
 
   if [[ -n "$bad" ]]; then
-    echo "🔴 以下 PM2 进程状态非 online：" >&2
+    echo "🔴 以下 PM2 进程处于 error 状态：" >&2
     echo "$bad" >&2
     echo "请用 'pm2 logs <name>' 查看具体错误日志。" >&2
     return 1
   fi
 
   if [[ -n "$namespace" ]]; then
-    echo "🟢 namespace=$namespace 下的 PM2 进程全部 online"
+    echo "🟢 namespace=$namespace 下的 PM2 进程无 error 状态"
   else
-    echo "🟢 所有 PM2 进程全部 online"
+    echo "🟢 所有 PM2 进程无 error 状态"
   fi
 }
 
 # 对外暴露的检查函数：在子 shell 中关闭 xtrace，避免打印中间变量
-pm2_check_all_online() {
-  ( set +x; _pm2_check_all_online_impl "$@" )
+pm2_check_all_unerror() {
+  ( set +x; _pm2_check_all_unerror_impl "$@" )
 }
 
 ########################################

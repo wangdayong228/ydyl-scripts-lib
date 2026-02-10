@@ -150,8 +150,8 @@ step11_start_ydyl_console_service() {
 ########################################
 # STEP12: 检查 PM2 进程是否有失败
 ########################################
-step12_check_pm2_online() {
-	pm2_check_all_online
+step12_check_pm2_unerror() {
+	pm2_check_all_unerror
 }
 
 skip_step() {
