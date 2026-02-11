@@ -114,7 +114,7 @@ EOF
 
 	echo "🔹 STEP9.3: 启动生成账户服务"
 	npm run build
-	npm run start -- --fundAmount 5
+	npm run start -- --fundAmount 1000
 }
 
 ########################################
