@@ -61,9 +61,9 @@ step2_fund_l1_accounts() {
 	else
 		echo "🔹 实际转账 L1 ETH 给 KURTOSIS_L1_FUND_VAULT_ADDRESS ${KURTOSIS_L1_FUND_VAULT_ADDRESS} 、CLAIM_SERVICE_PRIVATE_KEY ${CLAIM_SERVICE_ADDRESS} 和 L1_REGISTER_BRIDGE_ADDRESS ${L1_REGISTER_BRIDGE_ADDRESS}"
 		# shellcheck disable=SC2153 # 相关变量由调用方（如 cdk_pipe.sh）负责初始化与校验
-		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$KURTOSIS_L1_FUND_VAULT_ADDRESS" --rpc-timeout 60
-		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60
-		cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$L1_REGISTER_BRIDGE_ADDRESS" --rpc-timeout 60
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$KURTOSIS_L1_FUND_VAULT_ADDRESS" --rpc-timeout 60 || return 1
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60 || return 1
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L1_RPC_URL" --private-key "$L1_VAULT_PRIVATE_KEY" --value 1000ether "$L1_REGISTER_BRIDGE_ADDRESS" --rpc-timeout 60 || return 1
 	fi
 }
 
@@ -76,8 +76,8 @@ step5_fund_l2_accounts() {
 	else
 		echo "🔹 实际转账 L2 ETH 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY"
 		# 说明：这里给 L2_ADDRESS（由 L2_PRIVATE_KEY 推导）充值，主要用于后续 Counter 部署与 ydyl-gen-accounts 交易等。
-		cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 6000ether "$L2_ADDRESS" --rpc-timeout 60
-		cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 1000ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 6000ether "$L2_ADDRESS" --rpc-timeout 60 || return 1
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 1000ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60 || return 1
 	fi
 }
 
@@ -114,7 +114,7 @@ EOF
 
 	echo "🔹 STEP9.3: 启动生成账户服务"
 	npm run build
-	npm run start -- --fundAmount 1000
+	npm run start -- --fundAmount 1000 --processes 1 --capacity 20000000
 }
 
 ########################################
