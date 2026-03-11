@@ -22,7 +22,7 @@ require_file() {
 
 require_var() {
     local var_name="$1"
-    local var_value="${!var_name}"
+    local var_value="${!var_name-}"
     if [[ -z "${var_value:-}" ]]; then
         echo "错误: $var_name 为空或未设置" >&2
         return 1

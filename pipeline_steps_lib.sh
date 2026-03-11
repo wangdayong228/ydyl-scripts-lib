@@ -29,6 +29,10 @@ step1_init_identities() {
 	if [[ -z "${L2_ADDRESS:-}" ]]; then
 		L2_ADDRESS=$(cast wallet address --private-key "$L2_PRIVATE_KEY")
 	fi
+	if [[ "${L2_TYPE:-}" = "2" ]] && [[ -n "${L2_ADDRESS:-}" ]]; then
+		# xjst 模式按约定把地址首位改为 1（仅改地址字符串，不改私钥）。
+		L2_ADDRESS="$(echo "$L2_ADDRESS" | sed -E 's/^0x[0-9a-fA-F]/0x1/')"
+	fi
 
 	export KURTOSIS_L1_PREALLOCATED_MNEMONIC CLAIM_SERVICE_PRIVATE_KEY L2_PRIVATE_KEY L2_ADDRESS
 
