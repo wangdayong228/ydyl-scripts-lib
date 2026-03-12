@@ -31,7 +31,7 @@ step1_init_identities() {
 	fi
 	if [[ "${L2_TYPE:-}" = "2" ]] && [[ -n "${L2_ADDRESS:-}" ]]; then
 		# xjst 模式按约定把地址首位改为 1（仅改地址字符串，不改私钥）。
-		L2_ADDRESS="$(echo "$L2_ADDRESS" | sed -E 's/^0x[0-9a-fA-F]/0x1/')"
+		L2_ADDRESS="$(printf '%s' "$L2_ADDRESS" | sed -E 's/^0x[0-9a-fA-F]/0x1/' | tr '[:upper:]' '[:lower:]')"
 	fi
 
 	export KURTOSIS_L1_PREALLOCATED_MNEMONIC CLAIM_SERVICE_PRIVATE_KEY L2_PRIVATE_KEY L2_ADDRESS
