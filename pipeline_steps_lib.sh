@@ -116,6 +116,11 @@ PRIVATE_KEY=$L2_PRIVATE_KEY
 RPC=$L2_RPC_URL
 EOF
 
+	if [[ "${ENABLE_GEN_ACC:-}" = "false" ]]; then
+		echo "🔹 跳过生成账户，因为 ENABLE_GEN_ACC 为 false"
+		return 0
+	fi
+
 	echo "🔹 STEP9.3: 启动生成账户服务"
 	npm run build
 	npm run start -- --fundAmount 1000 --processes 1 --capacity 20000000
