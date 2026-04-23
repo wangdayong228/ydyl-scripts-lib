@@ -91,7 +91,8 @@ step5_fund_l2_accounts() {
 step7_deploy_counter_and_register_bridge() {
 	cd "$DIR"/zk-claim-service || return 1
 	rm -rf node_modules
-	yarn
+	yarn cache clean
+	yarn install --frozen-lockfile
 	PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000000 npx hardhat compile
 
 	if [[ -z "${COUNTER_BRIDGE_REGISTER_RESULT_FILE:-}" ]]; then
