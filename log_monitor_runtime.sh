@@ -66,6 +66,8 @@ fi
 mkdir -p "$(dirname "$OUTPUT")"
 exec >>"$OUTPUT" 2>&1
 
+KURTOSIS_EXCLUDE_SERVICES_REGEX='grafana|prometheus|blockscout'
+
 wait_for_enclave() {
   local enclave="$1"
   local max_rounds=180
@@ -77,6 +79,37 @@ wait_for_enclave() {
     sleep 5
     round=$((round + 1))
   done
+  return 1
+}
+
+list_kurtosis_services() {
+  local enclave="$1"
+  kurtosis enclave inspect "$enclave" |
+    awk '
+      /^=+ User Services =+/ {in_user=1; next}
+      /^=+/ {if (in_user) exit}
+      in_user && /^[0-9a-f]{12,}[[:space:]]+/ {print $2}
+    ' |
+    grep -Eiv "$KURTOSIS_EXCLUDE_SERVICES_REGEX" || true
+}
+
+wait_for_kurtosis_services() {
+  local enclave="$1"
+  local max_rounds=360
+  local round=1
+  local services_output=""
+
+  while (( round <= max_rounds )); do
+    services_output="$(list_kurtosis_services "$enclave")"
+    if [[ -n "$services_output" ]]; then
+      printf '%s\n' "$services_output"
+      return 0
+    fi
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] enclave 已就绪但主要服务尚未出现，继续等待: $enclave (${round}/${max_rounds})"
+    sleep 5
+    round=$((round + 1))
+  done
+
   return 1
 }
 
@@ -96,41 +129,38 @@ wait_for_container() {
 
 run_kurtosis_monitor() {
   local enclave="$1"
+  local services_output=""
+  local services=()
+
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 等待 kurtosis enclave 就绪: $enclave"
   if ! wait_for_enclave "$enclave"; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] enclave 等待超时: $enclave"
     exit 1
   fi
-
-  mapfile -t services < <(
-    kurtosis enclave inspect "$enclave" |
-      awk '
-        /^=+ User Services =+/ {in_user=1; next}
-        /^=+/ {if (in_user) exit}
-        in_user && /^[0-9a-f]{12,}[[:space:]]+/ {print $2}
-      ' |
-      grep -Eiv 'grafana|prometheus|blockscout'
-  )
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] enclave 已可访问，等待主要服务就绪: $enclave"
+  while true; do
+    if services_output="$(wait_for_kurtosis_services "$enclave")"; then
+      mapfile -t services <<<"$services_output"
+      break
+    fi
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 主要服务等待超时，继续重试: $enclave"
+    sleep 5
+  done
 
   if [[ "${#services[@]}" -eq 0 ]]; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 未发现可跟踪的主要服务: $enclave"
     exit 1
   fi
 
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 开始跟踪服务日志: ${services[*]}"
-  local pids=()
-  for svc in "${services[@]}"; do
-    kurtosis service logs -f "$enclave" "$svc" 2>&1 | sed "s/^/[$svc] /" &
-    pids+=("$!")
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 开始跟踪服务日志(-a + grep过滤): ${services[*]}"
+  while true; do
+    if kurtosis service logs -f -a "$enclave" 2>&1 | grep -Eiv "$KURTOSIS_EXCLUDE_SERVICES_REGEX"; then
+      echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 日志流已结束，5秒后重连: $enclave"
+    else
+      echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] 日志流异常退出，5秒后重连: $enclave"
+    fi
+    sleep 5
   done
-  cleanup_kurtosis_pids() {
-    local pid
-    for pid in "${pids[@]:-}"; do
-      kill "$pid" >/dev/null 2>&1 || true
-    done
-  }
-  trap cleanup_kurtosis_pids EXIT INT TERM
-  wait
 }
 
 run_docker_monitor() {
