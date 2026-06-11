@@ -9,7 +9,7 @@ STACK=""
 
 KURTOSIS_CDK_SERVICES_REGEX='^(cdk-node-|cdk-erigon-rpc-|cdk-erigon-sequencer-|zkevm-pool-manager-|zkevm-prover-|status-checker-|zkevm-bridge-service-)'
 KURTOSIS_OP_SERVICES_REGEX='^(op-cl-[0-9]+-op-node-op-geth-op-kurtosis|op-el-[0-9]+-op-geth-op-node-op-kurtosis|op-batcher-op-kurtosis|op-proposer-op-kurtosis|op-challenger-op-kurtosis)$'
-KURTOSIS_LOG_LEVEL_EXCLUDE_REGEX='lvl=(debug|trace)|[[:space:]](DEBUG|TRACE)[[:space:]]|\[(dbg|trace)\]'
+KURTOSIS_LOG_LEVEL_EXCLUDE_REGEX='lvl=(debug|trace)|[[:space:]](DEBUG|TRACE)[[:space:]]|\[(dbug|dbg|trace)\]'
 
 LOG_STALL_TIMEOUT="${LOG_STALL_TIMEOUT:-120}"
 WATCHDOG_INTERVAL=10
