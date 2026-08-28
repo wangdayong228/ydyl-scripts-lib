@@ -69,6 +69,67 @@ check_template_substitution() {
 }
 
 ########################################
+# 链上余额补足工具
+########################################
+
+# wei_deficit <current_wei> <target_wei>
+# 输出 max(0, target - current)，使用 Node BigInt 避免大整数精度问题。
+wei_deficit() {
+  local current_wei="$1"
+  local target_wei="$2"
+  node -e '
+    const current = BigInt(process.argv[1]);
+    const target = BigInt(process.argv[2]);
+    const deficit = target > current ? target - current : 0n;
+    process.stdout.write(deficit.toString());
+  ' "$current_wei" "$target_wei"
+}
+
+# fund_eth_up_to <rpc_url> <from_pk> <to_addr> <amount> <unit>
+# 查询 to_addr 余额，仅补足至 <amount> <unit>；已达标则跳过。
+# DRYRUN=true 时只打印计划转账，不执行 cast send。
+fund_eth_up_to() {
+  local rpc_url="$1"
+  local from_pk="$2"
+  local to_addr="$3"
+  local amount="$4"
+  local unit="$5"
+
+  local current_wei target_wei deficit_wei
+
+  if ! current_wei=$(cast balance --rpc-url "$rpc_url" "$to_addr"); then
+    echo "错误: 查询 ${to_addr} 余额失败" >&2
+    return 1
+  fi
+  if ! target_wei=$(cast to-wei "$amount" "$unit"); then
+    echo "错误: 计算目标金额 ${amount} ${unit} 失败" >&2
+    return 1
+  fi
+  if ! deficit_wei=$(wei_deficit "$current_wei" "$target_wei"); then
+    echo "错误: 计算 ${to_addr} 余额差额失败（current=${current_wei}, target=${target_wei}）" >&2
+    return 1
+  fi
+  if [[ -z "$deficit_wei" || ! "$deficit_wei" =~ ^[0-9]+$ ]]; then
+    echo "错误: ${to_addr} 余额差额无效: '${deficit_wei}'" >&2
+    return 1
+  fi
+
+  if [[ "$deficit_wei" == "0" ]]; then
+    echo "🔹 跳过转账 ${to_addr}：当前余额 ${current_wei} wei，已达目标 ${amount} ${unit}（${target_wei} wei）"
+    return 0
+  fi
+
+  echo "🔹 补足 ${to_addr}：当前 ${current_wei} wei，目标 ${amount} ${unit}（${target_wei} wei），将转 ${deficit_wei} wei"
+
+  if [[ "${DRYRUN:-}" = "true" ]]; then
+    echo "🔹 DRYRUN 模式: 不执行实际转账"
+    return 0
+  fi
+
+  run_with_retry 3 5 cast send --legacy --rpc-url "$rpc_url" --private-key "$from_pk" --value "${deficit_wei}wei" "$to_addr" --rpc-timeout 60
+}
+
+########################################
 # PM2 工具：检查是否有进程处于 error 状态；非 error 即视为成功
 ########################################
 

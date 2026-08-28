@@ -80,4 +80,142 @@ rm -f "$tmp_bad"
 
 echo "全部 utils.sh 测试用例通过"
 
+echo "===== 测试 wei_deficit ====="
+
+assert_wei_deficit() {
+  local expected="$1"
+  local current="$2"
+  local target="$3"
+  local msg="${4:-}"
+  local actual
+  actual=$(wei_deficit "$current" "$target")
+  if [[ "$expected" != "$actual" ]]; then
+    echo "❌ wei_deficit 断言失败: $msg 期望='$expected', 实际='$actual'"
+    exit 1
+  fi
+}
+
+# 不足
+assert_wei_deficit "500" "1000" "1500" "差额 500"
+# 恰好达标
+assert_wei_deficit "0" "1000" "1000" "已达标"
+# 超额
+assert_wei_deficit "0" "2000" "1000" "超额不抽回"
+# 5000 ether 量级（5e21 wei）
+assert_wei_deficit "1000000000000000000000" "4000000000000000000000" "5000000000000000000000" "5000 ether 大整数"
+
+echo "✅ wei_deficit 测试通过"
+
+echo "===== 测试 fund_eth_up_to（假 cast） ====="
+
+FAKE_BIN_DIR="$(mktemp -d)"
+trap 'rm -rf "$FAKE_BIN_DIR"' EXIT
+
+cat > "$FAKE_BIN_DIR/cast" <<'EOF'
+#!/bin/bash
+case "$1" in
+  balance)
+    if [[ "${FAKE_BALANCE_FAIL:-}" = "true" ]]; then
+      echo "balance query failed" >&2
+      exit 1
+    fi
+    echo "${FAKE_BALANCE:-0}"
+    ;;
+  to-wei)
+    # 仅支持测试中的 1000 ether / 5000 ether
+    if [[ "$3" == "ether" ]]; then
+      case "$2" in
+        1000) echo "1000000000000000000000" ;;
+        5000) echo "5000000000000000000000" ;;
+        *) echo "unsupported amount: $2" >&2; exit 1 ;;
+      esac
+    else
+      echo "unsupported unit: $3" >&2; exit 1
+    fi
+    ;;
+  send)
+    echo "SEND:$*" >> "${FAKE_CAST_SEND_LOG:-/dev/null}"
+    ;;
+  *)
+    echo "unsupported cast command: $1" >&2
+    exit 1
+    ;;
+esac
+EOF
+chmod +x "$FAKE_BIN_DIR/cast"
+
+PATH="$FAKE_BIN_DIR:$PATH"
+FAKE_CAST_SEND_LOG="$(mktemp)"
+export FAKE_CAST_SEND_LOG
+
+# 已达标：跳过 send
+: > "$FAKE_CAST_SEND_LOG"
+FAKE_BALANCE="1000000000000000000000"
+export FAKE_BALANCE
+if fund_eth_up_to "http://fake-rpc" "0xdead" "0xrecipient" 1000 ether; then
+  if [[ -s "$FAKE_CAST_SEND_LOG" ]]; then
+    echo "❌ fund_eth_up_to 已达标时不应 send"
+    exit 1
+  fi
+  echo "✅ fund_eth_up_to 已达标跳过"
+else
+  echo "❌ fund_eth_up_to 已达标时应成功返回"
+  exit 1
+fi
+
+# 不足：只转差额
+: > "$FAKE_CAST_SEND_LOG"
+FAKE_BALANCE="400000000000000000000"
+export FAKE_BALANCE
+if fund_eth_up_to "http://fake-rpc" "0xdead" "0xrecipient" 1000 ether; then
+  if ! grep -q 'SEND:.*--value 600000000000000000000wei' "$FAKE_CAST_SEND_LOG"; then
+    echo "❌ fund_eth_up_to 应只转差额 600000000000000000000 wei"
+    cat "$FAKE_CAST_SEND_LOG"
+    exit 1
+  fi
+  echo "✅ fund_eth_up_to 只转差额"
+else
+  echo "❌ fund_eth_up_to 补足差额时应成功"
+  exit 1
+fi
+
+# DRYRUN：不 send
+: > "$FAKE_CAST_SEND_LOG"
+FAKE_BALANCE="0"
+export FAKE_BALANCE
+DRYRUN=true
+export DRYRUN
+if fund_eth_up_to "http://fake-rpc" "0xdead" "0xrecipient" 5000 ether; then
+  if [[ -s "$FAKE_CAST_SEND_LOG" ]]; then
+    echo "❌ DRYRUN 模式下不应 send"
+    exit 1
+  fi
+  echo "✅ fund_eth_up_to DRYRUN 不执行转账"
+else
+  echo "❌ fund_eth_up_to DRYRUN 应成功返回"
+  exit 1
+fi
+
+unset DRYRUN
+rm -f "$FAKE_CAST_SEND_LOG"
+
+# DRYRUN + balance 查询失败：应失败，不能误报成功
+: > "$FAKE_CAST_SEND_LOG"
+unset FAKE_BALANCE
+FAKE_BALANCE_FAIL=true
+export FAKE_BALANCE_FAIL
+DRYRUN=true
+export DRYRUN
+if fund_eth_up_to "http://fake-rpc" "0xdead" "0xrecipient" 1000 ether; then
+  echo "❌ DRYRUN 下 balance 查询失败时不应返回成功"
+  exit 1
+else
+  echo "✅ fund_eth_up_to DRYRUN 在 balance 失败时正确失败"
+fi
+
+unset DRYRUN FAKE_BALANCE_FAIL
+rm -f "$FAKE_CAST_SEND_LOG"
+
+echo "全部 fund_eth_up_to 测试用例通过"
+
 

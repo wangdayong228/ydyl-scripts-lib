@@ -23,6 +23,8 @@
   - 检查环境变量是否为空
 - `run_with_retry`
   - 带重试执行命令
+- `wei_deficit` / `fund_eth_up_to`
+  - 查询链上余额并只补足至目标金额（step2 使用；`DRYRUN=true` 时只打印计划）
 - `pm2_check_all_unerror`
   - 检查 PM2 是否有 `errored` 进程
 - `ydyl_enable_traps`
