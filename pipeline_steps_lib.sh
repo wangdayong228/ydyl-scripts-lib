@@ -60,11 +60,28 @@ step2_fund_l1_accounts() {
 		L1_REGISTER_BRIDGE_ADDRESS=$(cast wallet address --private-key "$L1_REGISTER_BRIDGE_PRIVATE_KEY")
 	fi
 
-	echo "🔹 补足 L1 ETH 至目标余额：KURTOSIS_L1_FUND_VAULT_ADDRESS ${KURTOSIS_L1_FUND_VAULT_ADDRESS}、CLAIM_SERVICE_ADDRESS ${CLAIM_SERVICE_ADDRESS}、L1_REGISTER_BRIDGE_ADDRESS ${L1_REGISTER_BRIDGE_ADDRESS}"
-	# shellcheck disable=SC2153 # 相关变量由调用方（如 cdk_pipe.sh）负责初始化与校验
-	fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$KURTOSIS_L1_FUND_VAULT_ADDRESS" 5000 ether || return 1
-	fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$CLAIM_SERVICE_ADDRESS" 1000 ether || return 1
-	fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$L1_REGISTER_BRIDGE_ADDRESS" 1000 ether || return 1
+	local vault_eth claim_eth register_eth
+	vault_eth=$(require_non_negative_int_env L1_FUND_VAULT_ETH 5000) || return 1
+	claim_eth=$(require_non_negative_int_env L1_FUND_CLAIM_SERVICE_ETH 1000) || return 1
+	register_eth=$(require_non_negative_int_env L1_FUND_REGISTER_BRIDGE_ETH 1000) || return 1
+
+	echo "🔹 L1 补余额目标（ether）：vault=${vault_eth} claim-service=${claim_eth} register-bridge=${register_eth}"
+
+	if [[ "$vault_eth" == "0" ]]; then
+		echo "🔹 跳过 vault L1 补余额：L1_FUND_VAULT_ETH=0"
+	else
+		fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$KURTOSIS_L1_FUND_VAULT_ADDRESS" "$vault_eth" ether || return 1
+	fi
+	if [[ "$claim_eth" == "0" ]]; then
+		echo "🔹 跳过 claim-service L1 补余额：L1_FUND_CLAIM_SERVICE_ETH=0"
+	else
+		fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$CLAIM_SERVICE_ADDRESS" "$claim_eth" ether || return 1
+	fi
+	if [[ "$register_eth" == "0" ]]; then
+		echo "🔹 跳过 register-bridge L1 补余额：L1_FUND_REGISTER_BRIDGE_ETH=0"
+	else
+		fund_eth_up_to "$L1_RPC_URL" "$L1_VAULT_PRIVATE_KEY" "$L1_REGISTER_BRIDGE_ADDRESS" "$register_eth" ether || return 1
+	fi
 }
 
 ########################################

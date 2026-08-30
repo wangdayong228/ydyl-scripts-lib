@@ -218,4 +218,44 @@ rm -f "$FAKE_CAST_SEND_LOG"
 
 echo "全部 fund_eth_up_to 测试用例通过"
 
+echo "===== 测试 require_non_negative_int_env ====="
+
+assert_int_env() {
+  local expected="$1"
+  local var_name="$2"
+  local default_val="$3"
+  local env_val="${4-}"
+  local actual
+  if [[ -n "${env_val+x}" ]]; then
+    export "${var_name?}=${env_val}"
+  else
+    unset "${var_name?}" 2>/dev/null || true
+  fi
+  actual=$(require_non_negative_int_env "$var_name" "$default_val")
+  if [[ "$expected" != "$actual" ]]; then
+    echo "❌ require_non_negative_int_env 断言失败: 期望='$expected', 实际='$actual'"
+    exit 1
+  fi
+}
+
+assert_int_env_fail() {
+  local var_name="$1"
+  local default_val="$2"
+  local env_val="$3"
+  export "${var_name?}=${env_val}"
+  if require_non_negative_int_env "$var_name" "$default_val" 2>/dev/null; then
+    echo "❌ require_non_negative_int_env 应失败: ${var_name}=${env_val}"
+    exit 1
+  fi
+}
+
+assert_int_env "5000" "L1_FUND_VAULT_ETH" 5000
+assert_int_env "100" "L1_FUND_VAULT_ETH" 5000 "100"
+assert_int_env "0" "L1_FUND_CLAIM_SERVICE_ETH" 1000 "0"
+assert_int_env_fail "L1_FUND_VAULT_ETH" 5000 "-1"
+assert_int_env_fail "L1_FUND_VAULT_ETH" 5000 "1.5"
+assert_int_env_fail "L1_FUND_VAULT_ETH" 5000 "abc"
+
+echo "✅ require_non_negative_int_env 测试通过"
+
 

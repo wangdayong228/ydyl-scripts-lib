@@ -29,6 +29,21 @@ require_var() {
     fi
 }
 
+# require_non_negative_int_env <VAR_NAME> <DEFAULT>
+# 读取环境变量；未设置时用 DEFAULT。必须为非负整数，stdout 输出解析值。
+require_non_negative_int_env() {
+  local var_name="$1"
+  local default_val="$2"
+  local raw="${!var_name-}"
+  local val="${raw:-$default_val}"
+
+  if [[ ! "$val" =~ ^[0-9]+$ ]]; then
+    echo "错误: ${var_name} 必须为非负整数（ether），当前为 '${val}'" >&2
+    return 1
+  fi
+  echo "$val"
+}
+
 run_with_retry() {
   local max_retries="$1"
   local delay_seconds="$2"
