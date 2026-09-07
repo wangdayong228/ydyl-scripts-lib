@@ -85,16 +85,19 @@ step2_fund_l1_accounts() {
 }
 
 ########################################
-# STEP5: 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY 转账 L2 ETH
+# STEP5: 给 L2_PRIVATE_KEY、CLAIM_SERVICE_PRIVATE_KEY 和固定地址转账 L2 ETH
 ########################################
 step5_fund_l2_accounts() {
+	# CDK/OP 共用：额外给固定演示账户充 1000 ETH。XJST 走 step_fund_xjst_l2_accounts，不会执行这里。
+	local extra_fund_address="0x311C290704B850d2be9aC5F486fD7073B7ce4Ad9"
 	if [[ "${DRYRUN:-}" = "true" ]]; then
-		echo "🔹 DRYRUN 模式: 转账 L2 ETH 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY (DRYRUN 模式下不执行实际转账)"
+		echo "🔹 DRYRUN 模式: 转账 L2 ETH 给 L2_PRIVATE_KEY、CLAIM_SERVICE_PRIVATE_KEY 和 ${extra_fund_address} (DRYRUN 模式下不执行实际转账)"
 	else
-		echo "🔹 实际转账 L2 ETH 给 L2_PRIVATE_KEY 和 CLAIM_SERVICE_PRIVATE_KEY"
+		echo "🔹 实际转账 L2 ETH 给 L2_PRIVATE_KEY、CLAIM_SERVICE_PRIVATE_KEY 和 ${extra_fund_address}"
 		# 说明：这里给 L2_ADDRESS（由 L2_PRIVATE_KEY 推导）充值，主要用于后续 Counter 部署与 ydyl-gen-accounts 交易等。
 		run_with_retry 3 5 cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 6000ether "$L2_ADDRESS" --rpc-timeout 60 || return 1
 		run_with_retry 3 5 cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 1000ether "$CLAIM_SERVICE_ADDRESS" --rpc-timeout 60 || return 1
+		run_with_retry 3 5 cast send --legacy --rpc-url "$L2_RPC_URL" --private-key "$L2_VAULT_PRIVATE_KEY" --value 1000ether "$extra_fund_address" --rpc-timeout 60 || return 1
 	fi
 }
 

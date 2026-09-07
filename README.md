@@ -60,6 +60,8 @@
 - `step1_init_identities`
 - `step2_fund_l1_accounts`
 - `step5_fund_l2_accounts`
+  - CDK/OP 共用：给 `L2_ADDRESS`、`CLAIM_SERVICE_ADDRESS` 和固定地址 `0x311C290704B850d2be9aC5F486fD7073B7ce4Ad9` 转 L2 ETH
+  - XJST 不走此函数，使用 `xjst_pipe.sh` 的 `step_fund_xjst_l2_accounts`
 - `step7_deploy_counter_and_register_bridge`
 - `step9_gen_accounts`
 - `step10_collect_metadata`
